@@ -135,9 +135,31 @@ def main():
                     # Get unique companies
                     companies = df['Company'].unique()
                     
-                    # Create comprehensive comparison for each product
+                    # Pre-check which products have sufficient data for company comparison
+                    products_with_sufficient_data = []
+                    
                     for product in selected_products:
                         if product in forecasts:
+                            # Count companies with sufficient data for this product
+                            companies_with_data = 0
+                            for company in companies:
+                                company_data = df[(df['Company'] == company) & (df['Product'] == product)]
+                                if len(company_data) > 10:  # Ensure sufficient data
+                                    from utils.data_processor import DataProcessor
+                                    prophet_data = DataProcessor.prepare_prophet_data(company_data, product)
+                                    if len(prophet_data) > 20:  # Minimum data requirement
+                                        companies_with_data += 1
+                            
+                            # Only include products with data from multiple companies
+                            if companies_with_data > 1:
+                                products_with_sufficient_data.append(product)
+                    
+                    # Only show comparison for products with sufficient data
+                    if not products_with_sufficient_data:
+                        st.info("📊 No products have sufficient data from multiple companies for comparison analysis.")
+                    else:
+                        # Create comprehensive comparison for each product with sufficient data
+                        for product in products_with_sufficient_data:
                             st.markdown(f"#### 🥛 {product} - Market Analysis")
                             
                             # Generate forecasts for each company
@@ -298,10 +320,7 @@ def main():
                                 
                                 st.markdown("---")
                             
-                            elif len(company_forecasts) == 1:
-                                st.info(f"ℹ️ Only one company has sufficient data for {product} comparison")
-                            else:
-                                st.warning(f"⚠️ Insufficient data for company comparison of {product}")
+                            # Skip products with insufficient data - only show products with multiple company forecasts
             else:
                 # Show individual forecasts without tabs when no company comparison available
                 st.markdown("### 📈 Product Forecasts")

@@ -281,14 +281,43 @@ def generate_forecast_report(df, forecasts):
     # Forecast visualizations
     st.subheader("📊 Forecast Visualizations")
     
+    # Calculate appropriate vertical spacing based on number of subplots
+    num_plots = len(forecasts)
+    
+    # Handle large number of products differently
+    MAX_PLOTS = 15  # Maximum number of plots for readable visualization
+    if num_plots > MAX_PLOTS:
+        st.warning(f"⚠️ Large number of products ({num_plots}). Showing top {MAX_PLOTS} products by forecasted demand for better visualization.")
+        st.info("💡 Complete forecast data for all products is available in the summary table above.")
+        
+        # Calculate average forecasted demand for each product
+        product_demands = []
+        for product, forecast in forecasts.items():
+            avg_demand = forecast['yhat'].mean()
+            product_demands.append((product, avg_demand, forecast))
+        
+        # Sort by demand and take top products
+        product_demands.sort(key=lambda x: x[1], reverse=True)
+        top_forecasts = {product: forecast for product, _, forecast in product_demands[:MAX_PLOTS]}
+        forecasts_to_plot = top_forecasts
+        num_plots = len(forecasts_to_plot)
+    else:
+        forecasts_to_plot = forecasts
+    
+    if num_plots > 1:
+        max_spacing = 1 / (num_plots - 1)
+        vertical_spacing = min(0.1, max_spacing * 0.8)  # Use 80% of max allowed spacing
+    else:
+        vertical_spacing = 0.1
+    
     # Create combined forecast chart
     fig = make_subplots(
-        rows=len(forecasts), cols=1,
-        subplot_titles=list(forecasts.keys()),
-        vertical_spacing=0.1
+        rows=num_plots, cols=1,
+        subplot_titles=list(forecasts_to_plot.keys()),
+        vertical_spacing=vertical_spacing
     )
     
-    for i, (product, forecast) in enumerate(forecasts.items()):
+    for i, (product, forecast) in enumerate(forecasts_to_plot.items()):
         future_data = forecast.tail(30)
         
         fig.add_trace(
@@ -319,7 +348,7 @@ def generate_forecast_report(df, forecasts):
             row=i+1, col=1
         )
     
-    fig.update_layout(height=300*len(forecasts), title_text="30-Day Demand Forecasts")
+    fig.update_layout(height=300*len(forecasts_to_plot), title_text="30-Day Demand Forecasts")
     st.plotly_chart(fig, use_container_width=True)
     
     # Forecast accuracy metrics (if available)
